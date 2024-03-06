@@ -1,0 +1,67 @@
+// Copyright (C) 2024 by Grant Monroe grant@tnarg.com
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package pemba.authn.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+
+option java_multiple_files = true;
+option java_outer_classname = "AuthenticationProto";
+option java_package = "dev.pemba.authn.v1";
+option go_package = "go.pemba.dev/pemba/authn/apiv1/authenticationpb;authenticationpb";
+
+// Pemba Authentication Service
+service Authentication {
+  option (google.api.default_host) = "authn.pembaapis.dev";
+
+  // Initiate an authentication flow for the specified organization.
+  rpc AuthenticateUser(AuthenticateUserRequest)
+      returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1/user:authenticate"
+      body: "*"
+    };
+    option (google.longrunning.operation_info) = {
+      response_type: "AuthenticateUserResponse"
+      metadata_type: "AuthenticateUserMetadata"
+    };
+  }
+}
+
+// The request for
+// [AuthenticateUser][pemba.authn.v1.Authenticator.AuthenticateUser].
+message AuthenticateUserRequest {
+  // Required. The organization with which to authenticate.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "foundation.pembaapis.dev/Organization"
+    }
+  ];
+
+  // Required. Whether or not to authomatically close the browser
+  // window upon completion of the authentication flow.
+  bool auto_close = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+// The response for
+// [AuthenticateUser][pemba.authn.v1.Authenticator.AuthenticateUser].
+message AuthenticateUserResponse {
+  // Required. The bearer token is to be passed in the authorization header to
+  // authenticate future calls.
+  string bearer_token = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+// Metadata type for the operation returned by
+// [AuthenticateUser][pemba.authn.v1.Authenticator.AuthenticateUser].
+message AuthenticateUserMetadata {
+  // Required. The browser URI the caller MUST open to complete the
+  // authentication flow.
+  string browser_uri = 1 [(google.api.field_behavior) = REQUIRED];
+}
