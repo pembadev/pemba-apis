@@ -1,0 +1,492 @@
+syntax = "proto3";
+
+package pemba.foundation.admin.organization.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_outer_classname = "FoundationAdminOrganizationProto";
+option java_package = "dev.pemba.foundation.admin.organization.v1";
+option go_package = "go.pemba.dev/pemba/foundation/admin/organization/apiv1/organizationpb;organizationpb";
+
+// Pemba Foundation Organization Admin API
+//
+// The Pemba Foundation Organization Admin API can be used to
+// provision and manage an Organization by establishing control of an
+// internet domain name.
+//
+// (-- api-linter: core::0121::resource-must-support-list=disabled
+//     aip.dev/not-precedent: List is not appropriate here because of
+//     the authorization model being tied to a single domain. --)
+service OrganizationAdmin {
+  option (google.api.default_host) = "foundationadmin.pembaapis.dev";
+
+  // Retrieves the organization identified by the specified `name` (for example,
+  // `organizations/example.com`).
+  rpc GetOrganization(GetOrganizationRequest) returns (Organization) {
+    option (google.api.http) = {
+      get: "/v1/{name=organizations/*}"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Request that a new organization be created. The result is an `Operation`
+  // which can be used to track the creation process. This process usually takes
+  // a few seconds, but can sometimes take much longer. The tracking `Operation`
+  // is automatically deleted after a few hours, so there is no need to call
+  // `DeleteOperation`.
+  //
+  // (-- api-linter: core::0133::method-signature=disabled
+  //     aip.dev/not-precedent: Organizations do not have a parent. --)
+  rpc CreateOrganization(CreateOrganizationRequest)
+      returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1/organizations"
+      body: "organization"
+    };
+    option (google.api.method_signature) = "organization_id,organization";
+    option (google.longrunning.operation_info) = {
+      response_type: "Organization"
+      metadata_type: "CreateOrganizationMetadata"
+    };
+  };
+
+  // Updates the fields of the organization identified by the specified `name`
+  // (for example, `organizations/example.com`).
+  rpc UpdateOrganization(UpdateOrganizationRequest)
+      returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      patch: "/v1/{organization.name=organizations/*}"
+      body: "organization"
+    };
+    option (google.api.method_signature) = "organization,update_mask";
+    option (google.longrunning.operation_info) = {
+      response_type: "Organization"
+      metadata_type: "UpdateOrganizationMetadata"
+    };
+  }
+
+  // Marks the organization identified by the specified
+  // `name` (for example, `organizations/library`) for deletion.
+  //
+  // This method will only affect the organization if it has a lifecycle state
+  // of
+  // [ACTIVE][pemba.foundation.admin.organization.v1.Organization.State.ACTIVE].
+  //
+  // This method changes the Organization's lifecycle state from
+  // [ACTIVE][pemba.foundation.admin.organization.v1.Organization.State.ACTIVE]
+  // to
+  // [DELETE_REQUESTED][pemba.foundation.admin.organization.v1.Organization.State.DELETE_REQUESTED].
+  // The deletion starts at an unspecified time,
+  // at which point the Organization is no longer accessible.
+  //
+  // Until the deletion completes, you can check the lifecycle state
+  // checked by retrieving the organization with [GetOrganization]
+  // [pemba.foundation.admin.organization.v1.Organizations.GetOrganization].
+  // However, you cannot update the organization.
+  //
+  // After the deletion completes, the organization is not retrievable by
+  // the  [GetOrganization]
+  // [pemba.foundation.admin.organization.v1.Organizations.GetOrganization]
+  // method.
+  //
+  // This method behaves idempotently, such that deleting a `DELETE_REQUESTED`
+  // organization will not cause an error, but also won't do anything.
+  rpc DeleteOrganization(DeleteOrganizationRequest)
+      returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      delete: "/v1/{name=organizations/*}"
+    };
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "DeleteOrganizationMetadata"
+    };
+  }
+
+  // Retrieves the identity provider identified by the specified `name` (for
+  // example, `organizations/example.com/identityProvider`).
+  rpc GetIdentityProvider(GetIdentityProviderRequest)
+      returns (IdentityProvider) {
+    option (google.api.http) = {
+      get: "/v1/{name=organizations/*/identityProvider}"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Updates the fields of the identity provider identified by the specified
+  // `name` (for example, `organizations/example.com/identityProvider`).
+  rpc UpdateIdentityProvider(UpdateIdentityProviderRequest)
+      returns (IdentityProvider) {
+    option (google.api.http) = {
+      patch: "/v1/{identity_provider.name=organizations/*/identityProvider}"
+      body: "identity_provider"
+    };
+    option (google.api.method_signature) = "identity_provider,update_mask";
+  }
+}
+
+// An Organization is the root node in the resource hierarchy to which
+// a particular entity's (a company, for example) resources
+// belong. Organizations are identified by a domain name. Proof of
+// domain ownership is required, and is verified during
+// CreateOrganization.
+message Organization {
+  option (google.api.resource) = {
+    type: "foundationadmin.pembaapis.dev/Organization"
+    pattern: "organizations/{organization}"
+    singular: "organization"
+    plural: "organization"
+    style: DECLARATIVE_FRIENDLY
+  };
+
+  // Organization lifecycle states.
+  enum State {
+    // Unspecified state.
+    STATE_UNSPECIFIED = 0;
+
+    // The normal and active state.
+    ACTIVE = 1;
+
+    // The organization has been marked for deletion by the user.
+    DELETE_REQUESTED = 2;
+
+    // The organization verification expired date has passed.
+    EXPIRED = 3;
+  }
+
+  // The types of supported domain verification challenges.
+  //
+  // All challenge types make use of a Challenge Signature. The
+  // Challenge Signature is a JSON Web Signature (JWS) of the
+  // hexidecimal-decoded domain_verification_token bytes using the
+  // private key used to sign the Certificate Signing Request
+  // (CSR).
+  //
+  // The JWS MUST use either ES256 or PS256 depending on the private key. The
+  // JWS payload headers MUST include "iss" matching the Subject of the CSR in
+  // RFC 2253 form.
+  //
+  // See RFC 7515 for the JWS specification.
+  enum ChallengeType {
+    // No challenge type was specified.
+    CHALLENGE_TYPE_UNSPECIFIED = 0;
+
+    // DNS verification: During a CreateOrganization transaction, the client
+    // proves its control over the domain name by proving that it can provision
+    // a TXT resource record containing a designated value for a specific
+    // verification domain name. The value of the TXT record MUST be the
+    // Challenge Signature in compact serializion format. For example, consider
+    // a Certificate Signing Request containing a DNS Name of "www.example.com".
+    // The client would create a DNS entry, e.g.
+    //
+    //     _pemba-challenge.www.example.org. 300 IN TXT "gfj9Xq...Rg85nM"
+    //
+    CHALLENGE_TYPE_DNS = 2;
+
+    // HTTPS verification: During a CreateOrganization transaction, the client
+    // proves its control over the domain name by proving that it can provision
+    // an HTTPS resources on a server accessible under that domain name.  The
+    // OrganizationAdmin service challenges the client to provision a file at a
+    // specific path, with a specific string as its content. The file name MUST
+    // match the domain_verification_token_hex, and the file contents MUST
+    // contain the Challenge Signature. For example:
+    //
+    //   GET /.well-known/pemba-challenge/916d5709...2f37a8e6
+    //   Host: example.org
+    //
+    //   HTTP/1.1 200 OK
+    //   Content-Type: application/jose+json
+    //
+    //   {
+    //       "payload": base64url({
+    //           "alg": "ES256",
+    //           "iss": "CN=Alice Rivest,O=Example Corp,L=Portland,ST=OR,C=US",
+    //       }),
+    //       "protected": base64url(unhexlify(domain_verification_token_hex)),
+    //       "signature": "Ea8TnltQ...yM-a8Smg"
+    //   }
+    CHALLENGE_TYPE_HTTPS = 1;
+  }
+
+  // Required. The name of the organization. Values are of the form
+  // `organizations/<organization_id>`
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Required. The name of this organization as it appears in UIs.
+  string display_name = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Required. The PEM-encoded X509 client certificate signing
+  // request.
+  //
+  // The Subject Common Name (CN) MUST be set to the full
+  // name of the administrative contact. The Subject Alternative Name
+  // (SAN) section MUST contain the DNS Name containing the domain
+  // name of this organization. The SAN section MUST include the Email
+  // address of the administrative contact, and the domain name of the
+  // email address must match the domain name in the DNS Name field.
+  string client_csr_pem = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // Output only. The PEM-encoded X509 client certificate.
+  //
+  // This field will be populated only after the successful validation
+  // of the domain verification challenge as well as the
+  // administrative contact verification.
+  string client_crt_pem = 4 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Required. The type of domain verification challenge requested.
+  ChallengeType domain_verification_type = 5
+      [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. To store small amounts of arbitrary data such as
+  // provisioning metadata.
+  map<string, string> annotations = 6 [(google.api.field_behavior) = OPTIONAL];
+
+  // Output only. A random value that uniquely identifies the
+  // challenge.  This value MUST have at least 128 bits of entropy. It
+  // MUST be a hexidecimal-encoded byte sequence.
+  string domain_verification_token_hex = 7
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The administator full name extracted from the CSR.
+  string admin_fullname = 8 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The administator email address extracted from the CSR.
+  string admin_email = 9 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The system-assigned unique identifier for this
+  // resource.
+  string uid = 10 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info).format = UUID4
+  ];
+
+  // Output only. The lifecycle state of the organization.
+  // Updates to the state must be performed using
+  // [UpdateOrganization][pemba.foundation.admin.organization.v1.OrganizationAdmin.UpdateOrganization]
+  // or
+  // [DeleteOrganization][pemba.foundation.admin.organization.v1.OrganizationAdmin.DeleteOrganization].
+  State state = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the organization was created.
+  google.protobuf.Timestamp create_time = 12
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the organization was most recently updated.
+  google.protobuf.Timestamp update_time = 13
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the organization deletion was requested.
+  google.protobuf.Timestamp delete_time = 14
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the organization will expire unless renewed
+  // by updating.
+  google.protobuf.Timestamp expires_time = 15
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. If true, the organization is being created or
+  // updated. If false, there are no ongoing operations for the
+  // organization.
+  bool reconciling = 16 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. This checksum is computed by the server based on the value of
+  // other fields, and may be sent on update and delete requests to ensure the
+  // client has an up-to-date value before proceeding.
+  string etag = 17 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// An Organization's OpenID Connect Identity Provider
+message IdentityProvider {
+  option (google.api.resource) = {
+    type: "foundationadmin.pembaapis.dev/IdentityProvider"
+    pattern: "organizations/{organization}/identityProvider"
+    singular: "identityProvider"
+    plural: "identityProviders"
+  };
+
+  // Required. The name of this resource.
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Required. The organization which this identity provider belongs.
+  string parent = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "foundationadmin.pembaapis.dev/Organization"
+    }
+  ];
+
+  // Optional. Initially unset upon provisioning an parent organization, the
+  // base URI of the identity provider. Required for user authentication against
+  // the parent organization.
+  string base_uri = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. Initially unset upon provisioning an parent organization, the
+  // client_id of the identity provider. Required for user authentication
+  // against the parent organization.
+  string client_id = 4 [(google.api.field_behavior) = OPTIONAL];
+
+  // Output only. The time at which the organization was created.
+  google.protobuf.Timestamp create_time = 5
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the organization was most recently updated.
+  google.protobuf.Timestamp update_time = 6
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for
+// [GetOrganization][pemba.foundation.admin.organization.v1.OrganizationAdmin.GetOrganization].
+message GetOrganizationRequest {
+  // Required. The name of the requested organization. Values are of
+  // the form `organizations/<organization>`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "foundationadmin.pembaapis.dev/Organization"
+    }
+  ];
+}
+
+// The request for
+// [CreateOrganization][pemba.foundation.admin.organization.v1.OrganizationAdmin.CreateOrganization].
+message CreateOrganizationRequest {
+  // Required. The organization domain name.
+  string organization_id = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Required. The organization to create.
+  Organization organization = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. If set, validate the request, but do not actually create it.
+  bool validate_only = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Metadata type for the operation returned by
+// [CreateOrganization][pemba.foundation.admin.organization.v1.OrganizationAdmin.CreateOrganization].
+message CreateOrganizationMetadata {
+  // The organization being created.
+  Organization organization = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The time at which
+  // [CreateOrganization][pemba.foundation.admin.organization.v1.OrganizationAdmin.CreateOrganization]
+  // request was received.
+  google.protobuf.Timestamp start_time = 2;
+
+  // The time at which this operation was cancelled. If set, this operation is
+  // in the process of undoing itself (which is guaranteed to succeed) and
+  // cannot be cancelled again.
+  google.protobuf.Timestamp cancel_time = 3;
+
+  // The time at which this operation failed or was completed successfully.
+  google.protobuf.Timestamp end_time = 4;
+}
+
+// The request for
+// [UpdateOrganization][pemba.foundation.admin.organization.v1.OrganizationAdmin.UpdateOrganization].
+message UpdateOrganizationRequest {
+  // Required. The organization to update.
+  //
+  // The organization's `name` field is used to identify the organization to
+  // be updated. Format: organizations/{organization}
+  Organization organization = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. The list of fields to be updated.
+  google.protobuf.FieldMask update_mask = 2
+      [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. If set to true, and the organization is not found, a new
+  // organization will be created. In this situation, `update_mask` is
+  // ignored.
+  bool allow_missing = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. If set, validate the request and preview the organization,
+  // but do not actually update it.
+  bool validate_only = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Metadata type for the operation returned by
+// [UpdateOrganization][pemba.foundation.admin.organization.v1.OrganizationAdmin.UpdateOrganization].
+message UpdateOrganizationMetadata {
+  // The organization being updated.
+  Organization organization = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The time at which
+  // [CreateOrganization][pemba.foundation.admin.organization.v1.OrganizationAdmin.CreateOrganization]
+  // request was received.
+  google.protobuf.Timestamp start_time = 2;
+
+  // The time at which this operation was cancelled. If set, this operation is
+  // in the process of undoing itself (which is guaranteed to succeed) and
+  // cannot be cancelled again.
+  google.protobuf.Timestamp cancel_time = 3;
+
+  // The time at which this operation failed or was completed successfully.
+  google.protobuf.Timestamp end_time = 4;
+}
+
+// The request for
+// [DeleteOrganization][pemba.foundation.admin.organization.v1.OrganizationAdmin.DeleteOrganization].
+message DeleteOrganizationRequest {
+  // Required. The name of the organization to delete.  Values are of the
+  // form `organizations/<organization>`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "foundationadmin.pembaapis.dev/Organization"
+    }
+  ];
+
+  // Optional. The current etag of the organization.
+  // If an etag is provided and does not match the current etag of the
+  // organization, deletion will be blocked and an ABORTED error will be
+  // returned.
+  string etag = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. Validate, but not actually execute, a request,
+  // and provide the same response.
+  bool validate_only = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // If set to true, any books from this publisher will also be deleted.
+  // (Otherwise, the request will only work if the publisher has no books.)
+  bool force = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Metadata type for the operation returned by
+// [DeleteOrganization][pemba.foundation.admin.organization.v1.OrganizationAdmin.DeleteOrganization].
+message DeleteOrganizationMetadata {}
+
+// The request for
+// [GetIdentityProvider][pemba.foundation.admin.organization.v1.OrganizationAdmin.GetIdentityProvider].
+message GetIdentityProviderRequest {
+  // Required. The name of the requested identity provider. Values are of
+  // the form `organizations/<organization>/identityProvider`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "foundationadmin.pembaapis.dev/IdentityProvider"
+    }
+  ];
+}
+
+// The request for
+// [UpdateIdentityProvider][pemba.foundation.admin.organization.v1.OrganizationAdmin.UpdateIdentityProvider].
+message UpdateIdentityProviderRequest {
+  // Required. The identity provider to update.
+  //
+  // The idp's `name` field is used to identify the organization to
+  // be updated. Format: organizations/{organization}/identityProvider
+  IdentityProvider identity_provider = 1
+      [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. The list of fields to be updated.
+  google.protobuf.FieldMask update_mask = 2
+      [(google.api.field_behavior) = OPTIONAL];
+}
