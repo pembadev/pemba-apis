@@ -1,0 +1,372 @@
+// Copyright (C) 2024 by Grant Monroe grant@tnarg.com
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package pemba.rebac.admin.v1;
+
+import "google/api/auth.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_outer_classname = "ResourcesProto";
+option java_package = "dev.pemba.rebac.admin.v1";
+option go_package = "go.pemba.dev/pemba/rebac/admin/apiv1/adminpb;adminpb";
+
+// In Pemba ReBAC, a Service provides a namespace for Resource collections.
+// Names of resources need to be unique within a service, but not across
+// services.
+//
+// Services are intended for use in environments with many resource-oriented
+// APIs managed by separate teams. Each service typically maps to a single team
+// or product area where resource collections are logically related.
+message Service {
+  option (google.api.resource) = {
+    type: "rebacadmin.pembaapis.dev/Service"
+    pattern: "services/{service}"
+    singular: "service"
+    plural: "services"
+    style: DECLARATIVE_FRIENDLY
+  };
+
+  // Service lifecycle states.
+  enum State {
+    // Unspecified state.  This is only used/useful for distinguishing
+    // unset values.
+    STATE_UNSPECIFIED = 0;
+
+    // The normal and active state.
+    ACTIVE = 1;
+
+    // The service has been marked for deletion by the user
+    // (by invoking
+    // [DeleteService][pemba.rebac.admin.v1.ReBACAdmin.DeleteService])
+    DELETE_REQUESTED = 2;
+  }
+
+  // Required. The name of the service. Values are of the form
+  // `services/<service_id>`
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Required. The name of this service as it appears in UIs.
+  string display_name = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Required. The list of authentication rules governing authorization of
+  // reading edges.
+  repeated google.api.AuthenticationRule edge_readers = 3
+      [(google.api.field_behavior) = REQUIRED];
+
+  // Required. The list of authentication rules governing authorization of
+  // writing edges.
+  repeated google.api.AuthenticationRule edge_writers = 4
+      [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. To store small amounts of arbitrary data such as
+  // provisioning metadata.
+  map<string, string> annotations = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // Output only. The system-assigned unique identifier for this
+  // resource.
+  string uid = 6 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info).format = UUID4
+  ];
+
+  // Output only. The time at which the service was created.
+  google.protobuf.Timestamp create_time = 7
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the service was was most recently updated.
+  google.protobuf.Timestamp update_time = 8
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the service deletion was requested.
+  google.protobuf.Timestamp delete_time = 9
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The current service state.
+  State state = 10 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. If true, the service is being created or
+  // updated. If false, there are no ongoing operations for the
+  // service.
+  bool reconciling = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // This checksum is computed by the server based on the value of
+  // other fields, and may be sent on update and delete requests to
+  // ensure the client has an up-to-date value before proceeding.
+  string etag = 12 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// A Resoure defines a unique resource collection within a service. Names of
+// resources need to be unique within a service, but not across services.
+message Resource {
+  option (google.api.resource) = {
+    type: "rebacadmin.pembaapis.dev/Resource"
+    pattern: "services/{service}/resources/{resource}"
+    singular: "resource"
+    plural: "resources"
+    style: DECLARATIVE_FRIENDLY
+  };
+
+  // Resource lifecycle states.
+  enum State {
+    // Unspecified state.  This is only used/useful for distinguishing
+    // unset values.
+    STATE_UNSPECIFIED = 0;
+
+    // The normal and active state.
+    ACTIVE = 1;
+
+    // The resource has been marked for deletion by the user
+    // (by invoking
+    // [DeleteResource][pemba.rebac.admin.v1.ReBACAdmin.DeleteResource])
+    DELETE_REQUESTED = 2;
+  }
+
+  // Configuration of ReBAC graph edge storage settings.
+  message StorageConfig {
+    // The valid types of resource identifier.
+    enum IdType {
+      // Unspecified type. This is only used/useful for
+      // distinguishing unset values.
+      ID_TYPE_UNSPECIFIED = 0;
+
+      // The UUID type provided by the storage engine
+      ID_TYPE_UUID = 1;
+
+      // The int64 type provided by the storage engine
+      ID_TYPE_INT64 = 2;
+
+      // The string type provided by the storage engine
+      ID_TYPE_STRING = 3;
+
+      // The bytestring type provided by the storage engine
+      ID_TYPE_BYTES = 4;
+    }
+
+    // Immutable. The representation of resource identifiers for this resource
+    // type. This option, allows for optimizing storage of graph edges.
+    IdType id_type = 1 [(google.api.field_behavior) = IMMUTABLE];
+
+    // Optional. The limit on the length of an identifer. Only applies
+    // to string and bytestring identifiers.
+    int32 id_length_limit = 2 [(google.api.field_behavior) = OPTIONAL];
+  }
+
+  // Required. The name of the resource. Values are of the form
+  // `services/<service>/resources/<resource_id>`
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Required. The name of the service to which this resource belongs.
+  // Values are of the form `services/<service>`
+  string parent = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "rebacadmin.pembaapis.dev/Service"
+    }
+  ];
+
+  // Required. The name of this resource as it appears in UIs.
+  string display_name = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // Immutable. Configuration for how ReBAC graph edges are stored.
+  StorageConfig storage_config = 4 [(google.api.field_behavior) = IMMUTABLE];
+
+  // Optional. To store small amounts of arbitrary data such as provisioning
+  // metadata.
+  map<string, string> annotations = 5 [(google.api.field_behavior) = OPTIONAL];
+
+  // Immutable. The singular form of this resource.
+  string singular = 6 [(google.api.field_behavior) = IMMUTABLE];
+
+  // Immutable. The plural form of this resource. This value will match the
+  // resource_id used in the
+  // [CreateResource][pemba.rebac.admin.v1.ReBACAdmin.CreateResource] method.
+  string plural = 7 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The system-assigned unique identifier for this
+  // resource.
+  string uid = 8 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info).format = UUID4
+  ];
+
+  // Output only. The time at which the resource was created.
+  google.protobuf.Timestamp create_time = 9
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the resource was was most recently
+  // updated.
+  google.protobuf.Timestamp update_time = 10
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the resource deletion was requested.
+  google.protobuf.Timestamp delete_time = 11
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The current resource state.
+  State state = 12 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. If true, the resource is being created or updated. If false,
+  // there are no ongoing operations for the resource.
+  bool reconciling = 13 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // This checksum is computed by the server based on the value of other fields,
+  // and may be sent on update and delete requests to ensure the client has an
+  // up-to-date value before proceeding.
+  string etag = 14 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// A Relation defines a named class of edges in the Relationship-Based Access
+// Control (ReBAC) graph. By creating a relation, it becomes possible to create
+// edges in the ReBAC graph via the
+// [CreateEdge][pemba.rebac.v1.ReBAC.CreateEdge] rpc.
+//
+// Relations allow for edges of the form
+//
+//   <edge> ::= <object>#<relation_id>@<subject>
+//   <object> ::= <resource_id>:<identifier>
+//   <subject> ::= <sub_one> | <sub_all>
+//   <sub_one> ::= <resource_id>:<identifier>
+//   <sub_all> ::= <resource_id>:*
+//
+// A Relation declares a single object resource type and one or more subject
+// resource types.
+message Relation {
+  option (google.api.resource) = {
+    type: "rebacadmin.pembaapis.dev/Relation"
+    pattern: "services/{service}/resources/{resource}/relations/{relation}"
+    singular: "relation"
+    plural: "relations"
+    style: DECLARATIVE_FRIENDLY
+  };
+
+  // A ReBAC edge subject.
+  message Subject {
+    // Required. The type of resource permitted as a subject.
+    string sub = 1 [
+      (google.api.field_behavior) = REQUIRED,
+      (google.api.resource_reference) = {
+        type: "rebacadmin.pembaapis.dev/Resource"
+      }
+    ];
+
+    // Required. If true, this subject is of the form <sub_all>. The
+    // relation permits the creation of a single edge that relates all instances
+    // of the resource 'sub' to a single instance of resource 'parent'.
+    bool all = 2 [(google.api.field_behavior) = REQUIRED];
+  }
+
+  // Required. The name of the relation. Values are of the form
+  // `services/<service>/resources/<resource>/relations/<relation>`
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Required. The name of this relation as it appears in UIs.
+  string display_name = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Required. The type of resource permitted as an object.
+  string parent = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "rebacadmin.pembaapis.dev/Resource"
+    }
+  ];
+
+  // Required. The kinds of subjects this relation permits. Must be contain one
+  // or more subjects.
+  repeated Subject subjects = 4 [(google.api.field_behavior) = REQUIRED];
+
+  // Required. The number of edge partitions for this relation. Must be
+  // at least 1. The number of partitions chosen will depend on the anticipated
+  // cardinality of edges for this relation.
+  int64 edge_partitions = 5 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. To store small amounts of arbitrary data such as
+  // provisioning metadata.
+  map<string, string> annotations = 6 [(google.api.field_behavior) = OPTIONAL];
+
+  // Output only. The system-assigned unique identifier for this
+  // resource.
+  string uid = 7 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info).format = UUID4
+  ];
+
+  // Output only. The time at which the relation was created.
+  google.protobuf.Timestamp create_time = 8
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the relation was was most recently
+  // updated.
+  google.protobuf.Timestamp update_time = 9
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the relation deletion was requested.
+  google.protobuf.Timestamp delete_time = 10
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. If true, the relation is being created or updated. If false,
+  // there are no ongoing operations for the relation.
+  bool reconciling = 11 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // This checksum is computed by the server based on the value of other
+  // fields, and may be sent on update and delete requests to ensure the
+  // client has an up-to-date value before proceeding.
+  string etag = 12 [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// message Permission {
+//   option (google.api.resource) = {
+//     type: "rebacadmin.pembaapis.dev/Permission"
+//     pattern:
+//     "services/{service}/resources/{resource}/permissions/{permission}"
+//     singular: "permission"
+//     plural: "permissions"
+//     style: DECLARATIVE_FRIENDLY
+//   };
+//
+//   // Required. The name of the permission. Values are of the form
+//   // `services/<service>/resources/<resource>/permissions/<permission>`
+//   string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+//
+//   // Required. The name of this permission as it appears in UIs.
+//   string display_name = 2 [(google.api.field_behavior) = REQUIRED];
+//
+//   // Optional. To store small amounts of arbitrary data such as
+//   // provisioning metadata.
+//   map<string, string> annotations = 5 [(google.api.field_behavior) =
+//   OPTIONAL];
+//
+//   // Output only. The system-assigned unique identifier for this
+//   // resource.
+//   string uid = 6 [
+//     (google.api.field_behavior) = OUTPUT_ONLY,
+//     (google.api.field_info).format = UUID4
+//   ];
+//
+//   // Output only. The time at which the permission was created.
+//   google.protobuf.Timestamp create_time = 7
+//       [(google.api.field_behavior) = OUTPUT_ONLY];
+//
+//   // Output only. The time at which the permission was was most recently
+//   // updated.
+//   google.protobuf.Timestamp update_time = 8
+//       [(google.api.field_behavior) = OUTPUT_ONLY];
+//
+//   // Output only. The time at which the permission deletion was requested.
+//   google.protobuf.Timestamp delete_time = 9
+//       [(google.api.field_behavior) = OUTPUT_ONLY];
+//
+//   // Output only. If true, the permission is being created or updated. If
+//   // false, there are no ongoing operations for the permission.
+//   bool reconciling = 13 [(google.api.field_behavior) = OUTPUT_ONLY];
+//
+//   // This checksum is computed by the server based on the value of other
+//   // fields, and may be sent on update and delete requests to ensure the
+//   // client has an up-to-date value before proceeding.
+//   string etag = 14 [(google.api.field_behavior) = OUTPUT_ONLY];
+// }

@@ -1,0 +1,549 @@
+// Copyright (C) 2024 by Grant Monroe grant@tnarg.com
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package pemba.rebac.admin.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/resource.proto";
+import "google/longrunning/operations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "pemba/rebac/admin/v1/resources.proto";
+
+option java_multiple_files = true;
+option java_outer_classname = "ReBACAdminProto";
+option java_package = "dev.pemba.rebac.admin.v1";
+option go_package = "go.pemba.dev/pemba/rebac/admin/apiv1/adminpb;adminpb";
+
+// Pemba Relationship-Based Access Control (ReBAC) Administration API
+//
+// The Pemba ReBAC Admin API can be used to create, delete, modify and list
+// services, resources, relations, and permissions. Each service includes rules
+// governing the authorization of ReBAC graph edge management and permission
+// evaluation for all of the resource types definied within that service.
+service ReBACAdmin {
+  option (google.api.default_host) = "rebacadmin.pembaapis.dev";
+  option (google.api.oauth_scopes) =
+      "https://www.pembaapis.dev/auth/rebac.admin";
+
+  // Lists services. `list()` provides a strongly consistent view of the
+  // services. `list()` returns services sorted based upon the (ascending)
+  // lexical ordering of their `display_name`.
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse) {
+    option (google.api.http) = {
+      get: "/v1/services"
+    };
+  }
+
+  // Retrieves the service identified by the specified `name` (for example,
+  // `services/library`).
+  rpc GetService(GetServiceRequest) returns (Service) {
+    option (google.api.http) = {
+      get: "/v1/{name=services/*}"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Request that a new service be created. The result is an `Operation` which
+  // can be used to track the creation process. This process usually takes a few
+  // seconds, but can sometimes take much longer. The tracking `Operation` is
+  // automatically deleted after a few hours, so there is no need to call
+  // `DeleteOperation`.
+  //
+  // (-- api-linter: core::0133::method-signature=disabled
+  //     aip.dev/not-precedent: Services do not have a parent. --)
+  rpc CreateService(CreateServiceRequest)
+      returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1/services"
+      body: "service"
+    };
+    option (google.api.method_signature) = "service,service_id";
+    option (google.longrunning.operation_info) = {
+      response_type: "Service"
+      metadata_type: "CreateServiceMetadata"
+    };
+  }
+
+  // Updates the `display_name`, `annotations`,  of the service identified by
+  // the specified `name` (for example, `services/library`). Deleting all
+  // annotations requires an update mask for annotations field.
+  rpc UpdateService(UpdateServiceRequest)
+      returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      patch: "/v1/{service.name=services/*}"
+      body: "service"
+    };
+    option (google.api.method_signature) = "service,update_mask";
+    option (google.longrunning.operation_info) = {
+      response_type: "Service"
+      metadata_type: "UpdateServiceMetadata"
+    };
+  }
+
+  // Marks the service identified by the specified `name` (for example,
+  // `services/library`) for deletion.
+  //
+  // This method will only affect the service if it has a lifecycle state of
+  // [ACTIVE][pemba.rebac.admin.v1.Service.State.ACTIVE].
+  //
+  // This method changes the Service's lifecycle state from
+  // [ACTIVE][pemba.rebac.admin.v1.Service.State.ACTIVE]
+  // to
+  // [DELETE_REQUESTED][pemba.rebac.admin.v1.Service.State.DELETE_REQUESTED].
+  // The deletion starts at an unspecified time,
+  // at which point the Service is no longer accessible.
+  //
+  // Until the deletion completes, you can check the lifecycle state checked by
+  // retrieving the service with [GetService]
+  // [pemba.rebac.admin.v1.ReBACAdmin.GetService],
+  // and the service remains visible to [ListServices]
+  // [pemba.rebac.admin.v1.ReBACAdmin.ListServices].
+  // However, you cannot update the service.
+  //
+  // After the deletion completes, the service is not retrievable by
+  // the  [GetService]
+  // [pemba.rebac.admin.v1.ReBACAdmin.GetService], and
+  // [ListServices]
+  // [pemba.rebac.admin.v1.ReBACAdmin.ListServices]
+  // methods.
+  //
+  // This method behaves idempotently, such that deleting a `DELETE_REQUESTED`
+  // service will not cause an error, but also won't do anything.
+  rpc DeleteService(DeleteServiceRequest)
+      returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      delete: "/v1/{name=services/*}"
+    };
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "DeleteServiceMetadata"
+    };
+  }
+
+  // Lists resources that are direct children of the specified service resource.
+  // `list()` provides a strongly consistent view of the resources underneath
+  // the specified parent resource. `list()` returns resources sorted based upon
+  // the (ascending) lexical ordering of their `display_name`.
+  rpc ListResources(ListResourcesRequest) returns (ListResourcesResponse) {
+    option (google.api.http) = {
+      get: "/v1/{parent=services/*}/resources"
+    };
+    option (google.api.method_signature) = "parent";
+  }
+
+  // Retrieves the resource identified by the specified `name` (for example,
+  // `services/library/resources/books`).
+  rpc GetResource(GetResourceRequest) returns (Resource) {
+    option (google.api.http) = {
+      get: "/v1/{name=services/*/resources/*}"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Request that a new resource be created. The result is an `Operation` which
+  // can be used to track the creation process. This process usually takes a few
+  // seconds, but can sometimes take much longer. The tracking `Operation` is
+  // automatically deleted after a few hours, so there is no need to call
+  // `DeleteOperation`.
+  rpc CreateResource(CreateResourceRequest)
+      returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      post: "/v1/{parent=services/*}/resources"
+      body: "resource"
+    };
+    option (google.api.method_signature) = "parent,resource,resource_id";
+    option (google.longrunning.operation_info) = {
+      response_type: "Resource"
+      metadata_type: "CreateResourceMetadata"
+    };
+  }
+
+  // Updates the resource identified by the specified `name` (for example,
+  // `services/library/resources/books`). Deleting all annotations requires an
+  // update mask for annotations field.
+  rpc UpdateResource(UpdateResourceRequest)
+      returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      patch: "/v1/{resource.name=services/*/resources/*}"
+      body: "resource"
+    };
+    option (google.api.method_signature) = "resource,update_mask";
+    option (google.longrunning.operation_info) = {
+      response_type: "Resource"
+      metadata_type: "UpdateResourceMetadata"
+    };
+  }
+
+  // Marks the resource identified by the specified `name` (for example,
+  // `services/library/resources/books`) for deletion.
+  //
+  // This method will only affect the resource if it has a lifecycle state
+  // of [ACTIVE][pemba.rebac.admin.v1.Resource.State.ACTIVE].
+  //
+  // This method changes the resource's lifecycle state from
+  // [ACTIVE][pemba.rebac.admin.v1.Resource.State.ACTIVE]
+  // to
+  // [DELETE_REQUESTED][pemba.rebac.admin.v1.Resource.State.DELETE_REQUESTED].
+  // The deletion starts at an unspecified time,
+  // at which point the Resource is no longer accessible.
+  //
+  // Until the deletion completes, you can check the lifecycle state
+  // checked by retrieving the resource with [GetResource]
+  // [pemba.rebac.admin.v1.Resources.GetResource],
+  // and the resource remains visible to [ListResources]
+  // [pemba.rebac.admin.v1.Resources.ListResources].
+  // However, you cannot update the resource.
+  //
+  // After the deletion completes, the resource is not retrievable by
+  // the  [GetResource]
+  // [pemba.rebac.admin.v1.Resources.GetResource], and
+  // [ListResources]
+  // [pemba.rebac.admin.v1.Resources.ListResources]
+  // methods.
+  //
+  // This method behaves idempotently, such that deleting a `DELETE_REQUESTED`
+  // resource will not cause an error, but also won't do anything.
+  rpc DeleteResource(DeleteResourceRequest)
+      returns (google.longrunning.Operation) {
+    option (google.api.http) = {
+      delete: "/v1/{name=services/*/resources/*}"
+    };
+    option (google.api.method_signature) = "name";
+    option (google.longrunning.operation_info) = {
+      response_type: "google.protobuf.Empty"
+      metadata_type: "DeleteResourceMetadata"
+    };
+  }
+}
+
+// The request for
+// [ListServices][pemba.rebac.admin.v1.ReBACAdmin.ListServices].
+message ListServicesRequest {
+  // Number of services to be returned in the response. If 0 or
+  // less, defaults to the server's maximum allowed page size.
+  int32 page_size = 1 [(google.api.field_behavior) = OPTIONAL];
+
+  // If non-empty, `page_token` should contain a
+  // [next_page_token][pemba.rebac.admin.v1.ReBACAdmin.ListServicesResponse.next_page_token]
+  // from a previous
+  // [ListServices][pemba.rebac.admin.v1.ReBACAdmin.ListServices].
+  string page_token = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for
+// [ListServices][pemba.rebac.admin.v1.ReBACAdmin.ListServices].
+message ListServicesResponse {
+  // The list of requested services.
+  repeated Service services = 1;
+
+  // `next_page_token` can be sent in a subsequent
+  // [ListServices][pemba.rebac.admin.v1.ReBACAdmin.ListServices]
+  // call to fetch more of the matching services.
+  string next_page_token = 2;
+}
+
+// The request for
+// [GetService][pemba.rebac.admin.v1.ReBACAdmin.GetService].
+message GetServiceRequest {
+  // Required. The name of the requested service. Values are of
+  // the form `services/<service>`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "rebacadmin.pembaapis.dev/Service"
+    }
+  ];
+}
+
+// The request for
+// [CreateService][pemba.rebac.admin.v1.ReBACAdmin.CreateService].
+message CreateServiceRequest {
+  // Required. The user-defined identifier for this service. The
+  // service_id will be used as the first segment of the resource
+  // permissions defined within it. For example, if you have a
+  // (service_id=library, resource_id=books, and
+  // permission_id=get), the fully qualified permission will be
+  // 'library.books.get'.
+  //
+  // Format: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+  string service_id = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Required. The service to create.  The name may be omitted, but if
+  // specified must be `services/<service_id>`.
+  Service service = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. If set, validate the request and preview the service,
+  // but do not actually create it.
+  bool validate_only = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Metadata type for the operation returned by
+// [CreateService][pemba.rebac.admin.v1.ReBACAdmin.CreateService].
+message CreateServiceMetadata {
+  // The service being created.
+  Service service = 1;
+
+  // The time at which
+  // [CreateService][pemba.rebac.admin.v1.ReBACAdmin.CreateService]
+  // request was received.
+  google.protobuf.Timestamp start_time = 2;
+
+  // The time at which this operation was cancelled. If set, this operation is
+  // in the process of undoing itself (which is guaranteed to succeed) and
+  // cannot be cancelled again.
+  google.protobuf.Timestamp cancel_time = 3;
+
+  // The time at which this operation failed or was completed successfully.
+  google.protobuf.Timestamp end_time = 4;
+}
+
+// The request for
+// [UpdateService][pemba.rebac.admin.v1.ReBACAdmin.UpdateService].
+message UpdateServiceRequest {
+  // The service to update.
+  //
+  // The service's `name` field is used to identify the service to be
+  // updated.
+  // Format: services/{service}
+  Service service = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The list of fields to be updated.
+  google.protobuf.FieldMask update_mask = 2
+      [(google.api.field_behavior) = OPTIONAL];
+
+  // If set to true, and the service is not found, a new service will be
+  // created. In this situation, `update_mask` is ignored.
+  bool allow_missing = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. If set, validate the request and preview the service,
+  // but do not actually update it.
+  bool validate_only = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Metadata type for the operation returned by
+// [UpdateService][pemba.rebac.admin.v1.ReBACAdmin.UpdateService].
+message UpdateServiceMetadata {
+  // The desired end state of the update.
+  Service service = 1;
+
+  // The time at which
+  // [UpdateService][pemba.rebac.admin.v1.ReBACAdmin.UpdateService]
+  // request was received.
+  google.protobuf.Timestamp start_time = 2;
+
+  // The time at which this operation was cancelled. If set, this operation is
+  // in the process of undoing itself (which is guaranteed to succeed) and
+  // cannot be cancelled again.
+  google.protobuf.Timestamp cancel_time = 3;
+
+  // The time at which this operation failed or was completed successfully.
+  google.protobuf.Timestamp end_time = 4;
+}
+
+// The request for
+// [DeleteService][pemba.rebac.admin.v1.ReBACAdmin.DeleteService].
+message DeleteServiceRequest {
+  // Required. The name of the service to delete.  Values are of the
+  // form `services/<service>`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "rebacadmin.pembaapis.dev/Service"
+    }
+  ];
+
+  // If set to true, any resources for this service will also be deleted.
+  // (Otherwise, the request will only work if the service has no resources.)
+  bool force = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. The current etag of the service.
+  // If an etag is provided and does not match the current etag of the
+  // service, deletion will be blocked and an ABORTED error will be
+  // returned.
+  string etag = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. Validate, but not actually execute, a request,
+  // and provide the same response.
+  bool validate_only = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Metadata type for the operation returned by
+// [DeleteService][pemba.rebac.admin.v1.ReBACAdmin.DeleteService].
+message DeleteServiceMetadata {}
+
+// The request for
+// [ListResources][pemba.rebac.admin.v1.ReBACAdmin.ListResources].
+message ListResourcesRequest {
+  // Required. The name of the service whose resources are being listed.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "rebacadmin.pembaapis.dev/Service"
+    }
+  ];
+
+  // Number of resources to be returned in the response. If 0 or
+  // less, defaults to the server's maximum allowed page size.
+  int32 page_size = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // If non-empty, `page_token` should contain a
+  // [next_page_token][pemba.rebac.admin.v1.ReBACAdmin.ListResourcesResponse.next_page_token]
+  // from a previous
+  // [ListResources][pemba.rebac.admin.v1.ReBACAdmin.ListResources].
+  string page_token = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for
+// [ListResources][pemba.rebac.admin.v1.ReBACAdmin.ListResources].
+message ListResourcesResponse {
+  // The list of requested resources.
+  repeated Resource resources = 1;
+
+  // `next_page_token` can be sent in a subsequent
+  // [ListResources][pemba.rebac.admin.v1.ReBACAdmin.ListResources]
+  // call to fetch more of the matching resources.
+  string next_page_token = 2;
+}
+
+// The request for
+// [GetResource][pemba.rebac.admin.v1.ReBACAdmin.GetResource].
+message GetResourceRequest {
+  // Required. The name of the requested resource. Values are of
+  // the form `services/<service>/resources/<resource>`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "rebacadmin.pembaapis.dev/Resource"
+    }
+  ];
+}
+
+// The request for
+// [CreateResource][pemba.rebac.admin.v1.ReBACAdmin.CreateResource].
+message CreateResourceRequest {
+  // Required. The name of the service in which to create the resource.
+  // Values are of the form `services/<service>`.
+  string parent = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "rebacadmin.pembaapis.dev/Service"
+    }
+  ];
+
+  // Required. The user-defined identifier for this resource. This SHOULD be the
+  // plural form of the resource. The resource_id will be used as the second
+  // segment of the resource permissions defined within it. For example, if you
+  // have a (service=library, resource_id=books, and permission_id=get), the
+  // fully qualified permission will be 'library.books.get'.
+  //
+  // Format: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+  string resource_id = 3 [(google.api.field_behavior) = REQUIRED];
+
+  // Required. The resource to create.  The name may be omitted, but if
+  // specified must be `resources/<resource_id>`.
+  Resource resource = 2 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. If set, validate the request and preview the resource,
+  // but do not actually create it.
+  bool validate_only = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Metadata type for the operation returned by
+// [CreateResource][pemba.rebac.admin.v1.ReBACAdmin.CreateResource].
+message CreateResourceMetadata {
+  // The resource being created.
+  Resource resource = 1;
+
+  // The time at which
+  // [CreateResource][pemba.rebac.admin.v1.ReBACAdmin.CreateResource]
+  // request was received.
+  google.protobuf.Timestamp start_time = 2;
+
+  // The time at which this operation was cancelled. If set, this operation is
+  // in the process of undoing itself (which is guaranteed to succeed) and
+  // cannot be cancelled again.
+  google.protobuf.Timestamp cancel_time = 3;
+
+  // The time at which this operation failed or was completed successfully.
+  google.protobuf.Timestamp end_time = 4;
+}
+
+// The request for
+// [UpdateResource][pemba.rebac.admin.v1.ReBACAdmin.UpdateResource].
+message UpdateResourceRequest {
+  // The resource to update.
+  //
+  // The resource's `name` field is used to identify the resource to
+  // be updated. Format: services/<service>/resources/{resource}
+  Resource resource = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // The list of fields to be updated.
+  google.protobuf.FieldMask update_mask = 2
+      [(google.api.field_behavior) = OPTIONAL];
+
+  // If set to true, and the resource is not found, a new resource
+  // will be created. In this situation, `update_mask` is ignored.
+  bool allow_missing = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. If set, validate the request and preview the resource,
+  // but do not actually update it.
+  bool validate_only = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Metadata type for the operation returned by
+// [UpdateResource][pemba.rebac.admin.v1.ReBACAdmin.UpdateResource].
+message UpdateResourceMetadata {
+  // The desired end state of the update.
+  Resource resource = 1;
+
+  // The time at which
+  // [UpdateResource][pemba.rebac.admin.v1.ReBACAdmin.UpdateResource]
+  // request was received.
+  google.protobuf.Timestamp start_time = 2;
+
+  // The time at which this operation was cancelled. If set, this operation is
+  // in the process of undoing itself (which is guaranteed to succeed) and
+  // cannot be cancelled again.
+  google.protobuf.Timestamp cancel_time = 3;
+
+  // The time at which this operation failed or was completed successfully.
+  google.protobuf.Timestamp end_time = 4;
+}
+
+// The request for
+// [DeleteResource][pemba.rebac.admin.v1.ReBACAdmin.DeleteResource].
+message DeleteResourceRequest {
+  // Required. The name of the resource to delete.  Values are of the
+  // form `services/<service>/resources/<resource>`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "rebacadmin.pembaapis.dev/Resource"
+    }
+  ];
+
+  // If set to true, any relations or permissions for this resource will also be
+  // deleted. (Otherwise, the request will only work if the resource has no
+  // relations or permission.)
+  bool force = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. The current etag of the resource.
+  // If an etag is provided and does not match the current etag of the
+  // resource, deletion will be blocked and an ABORTED error will be
+  // returned.
+  string etag = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. Validate, but not actually execute, a request,
+  // and provide the same response.
+  bool validate_only = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// Metadata type for the operation returned by
+// [DeleteResource][pemba.rebac.admin.v1.ReBACAdmin.DeleteResource].
+message DeleteResourceMetadata {}
