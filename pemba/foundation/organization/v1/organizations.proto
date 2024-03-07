@@ -1,0 +1,165 @@
+// Copyright (C) 2024 by Grant Monroe grant@tnarg.com
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package pemba.foundation.organization.v1;
+
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+import "google/api/field_info.proto";
+import "google/api/resource.proto";
+import "google/iam/v1/iam_policy.proto";
+import "google/iam/v1/policy.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_outer_classname = "OrganizationsProto";
+option java_package = "dev.pemba.foundation.organization.v1";
+option go_package = "go.pemba.dev/pemba/foundation/organization/apiv1/organizationpb;organizationpb";
+
+// Pemba Foundation Organization API
+//
+// The Pemba Foundation Organization API can be used to list, lookup, and manage
+// IAM policies for Organization resources.
+service Organizations {
+  option (google.api.default_host) = "foundation.pembaapis.dev";
+  option (google.api.oauth_scopes) =
+      "https://www.pembaapis.dev/auth/foundation";
+
+  // Lists organizations. `list()` provides a strongly consistent view of the
+  // organizations. `list()` returns organizations sorted based upon the
+  // (ascending) lexical ordering of their `display_name`.
+  rpc ListOrganizations(ListOrganizationsRequest)
+      returns (ListOrganizationsResponse) {
+    option (google.api.http) = {
+      get: "/v1/organizations"
+    };
+  }
+
+  // Retrieves the organization identified by the specified `name` (for example,
+  // `organizations/example.com`).
+  rpc GetOrganization(GetOrganizationRequest) returns (Organization) {
+    option (google.api.http) = {
+      get: "/v1/{name=organizations/*}"
+    };
+    option (google.api.method_signature) = "name";
+  }
+
+  // Sets the access control policy on an organization resource. Replaces any
+  // existing policy.
+  //
+  // Authorization requires `foundation.organizations.setIamPolicy` on
+  // [resource][google.iam.v1.SetIamPolicyRequest.resource].
+  rpc SetIamPolicy(google.iam.v1.SetIamPolicyRequest)
+      returns (google.iam.v1.Policy) {
+    option (google.api.http) = {
+      post: "/v1/{resource=organizations/*}:setIamPolicy"
+      body: "*"
+    };
+    option (google.api.method_signature) = "resource,policy";
+  }
+
+  // Gets the access control policy for an organization resource. Returns an
+  // empty policy if an organization exists but does not have a policy set.
+  //
+  // Authorization requires `foundation.organizations.getIamPolicy` on
+  // [resource][google.iam.v1.GetIamPolicyRequest.resource].
+  rpc GetIamPolicy(google.iam.v1.GetIamPolicyRequest)
+      returns (google.iam.v1.Policy) {
+    option (google.api.http) = {
+      post: "/v1/{resource=organizations/*}:getIamPolicy"
+      body: "*"
+    };
+    option (google.api.method_signature) = "resource";
+  }
+
+  // Returns the permissions that a caller has on the specified organization.
+  // The `resource` field should be the organization's resource name,
+  // for example: "organizations/example.com".
+  rpc TestIamPermissions(google.iam.v1.TestIamPermissionsRequest)
+      returns (google.iam.v1.TestIamPermissionsResponse) {
+    option (google.api.http) = {
+      post: "/v1/{resource=*/organizations/*}:testIamPermissions"
+      body: "*"
+    };
+    option (google.api.method_signature) = "resource,permissions";
+  }
+}
+
+// An Organization is the root node in the resource hierarchy to which
+// a particular entity's (a company, for example) resources belong.
+// Organizations are uniquely identified by an internet  domain name.
+message Organization {
+  option (google.api.resource) = {
+    type: "foundation.pembaapis.dev/Organization"
+    pattern: "organizations/{organization}"
+    singular: "organization"
+    plural: "organizations"
+  };
+
+  // Output only. The name of the organization. Values are of the form
+  // `organizations/<domain>`
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+
+  // Output only. The domain name of the organization.
+  string domain = 2 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The name of this organization as it appears in UIs.
+  string display_name = 3 [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The system-assigned unique identifier for this
+  // resource.
+  string uid = 4 [
+    (google.api.field_behavior) = OUTPUT_ONLY,
+    (google.api.field_info).format = UUID4
+  ];
+
+  // Output only. The time at which the organization was created.
+  google.protobuf.Timestamp create_time = 5
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+
+  // Output only. The time at which the organization was most recently updated.
+  google.protobuf.Timestamp update_time = 6
+      [(google.api.field_behavior) = OUTPUT_ONLY];
+}
+
+// The request for
+// [ListOrganizations][pemba.foundation.v1.Organizations.ListOrganizations].
+message ListOrganizationsRequest {
+  // Number of organizations to be returned in the response. If 0 or
+  // less, defaults to the server's maximum allowed page size.
+  int32 page_size = 1 [(google.api.field_behavior) = OPTIONAL];
+
+  // If non-empty, `page_token` should contain a
+  // [next_page_token][pemba.foundation.v1.Organizations.ListOrganizationsResponse.next_page_token]
+  // from a previous
+  // [ListOrganizations][pemba.foundation.v1.Organizations.ListOrganizations].
+  string page_token = 2 [(google.api.field_behavior) = OPTIONAL];
+}
+
+// The response for
+// [ListOrganizations][pemba.foundation.v1.Organizations.ListOrganizations].
+message ListOrganizationsResponse {
+  // The list of requested organizations.
+  repeated Organization organizations = 1;
+
+  // `next_page_token` can be sent in a subsequent
+  // [ListOrganizations][pemba.foundation.v1.Organizations.ListOrganizations]
+  // call to fetch more of the matching organizations.
+  string next_page_token = 2;
+}
+
+// The request for
+// [GetOrganization][pemba.foundation.organization.v1.Organizations.GetOrganization].
+message GetOrganizationRequest {
+  // Required. The name of the requested organization. Values are of
+  // the form `organizations/<organization>`.
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {
+      type: "foundation.pembaapis.dev/Organization"
+    }
+  ];
+}
